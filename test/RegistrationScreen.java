@@ -66,7 +66,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    super.dispose();
+ |   super.dispose();
   }
 
   @override
@@ -113,7 +113,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         );
                       },
                     ).paddingOnly(left: 16, bottom: 8),
-
+        
                     _buildTextField(
                       controller: _fullNameController,
                       label: 'Full Name *',
@@ -124,7 +124,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       label: 'Email Address',
                       hint: 'Enter your email',
                     ),
-                    _buildGenderDropdown(),
+                    _buildGenderDropdown(),                    
                     _buildTextField(
                       controller: _phoneNumber,
                       label: 'Phone Number',
@@ -170,7 +170,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 onTap: () async {
                   await _handleRegistration();
                 },
-              ).paddingSymmetric(horizontal: 16, vertical: 20),
+              ).paddingSymmetric(horizontal: 16, vertical: 16),
             )
           ],
         ),
@@ -179,43 +179,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _handleRegistration() async {
-    if (_fullNameController.text.trim().isEmpty) {
-      MySnackBar.showSnackBar(context, "Full Name is required");
-      return;
-    }
-
-    if (_emailController.text.trim().isEmpty) {
-      MySnackBar.showSnackBar(context, "Email is required");
-      return;
-    }
-
-    if (selectedGender == null) {
-      MySnackBar.showSnackBar(context, "Please select your gender");
-      return;
-    }
-
-    if (_phoneNumber.text.trim().isEmpty) {
-      MySnackBar.showSnackBar(context, "Phone Number is required");
-      return;
-    }
-
-    if (_vehicleTypeInfo.text.trim().isEmpty) {
-      MySnackBar.showSnackBar(context, "Vehicle Type Info is required");
-      return;
-    }
-
-    if (_driverLicenseFile == null) {
-      MySnackBar.showSnackBar(context, "Driver’s License is required");
-      return;
-    }
-
-    if (_rcFile == null) {
-      MySnackBar.showSnackBar(context, "RC is required");
-      return;
-    }
-
-    if (_insuranceFile == null) {
-      MySnackBar.showSnackBar(context, "Vehicle Insurance is required");
+    if (_emailController.text.isEmpty) {
+      MySnackBar.showSnackBar(context, "Email are required");
       return;
     }
 
@@ -284,7 +249,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 letterSpacing: 0,
                 fontWeight: FontWeight.w400),
             contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -328,7 +293,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 letterSpacing: 0,
                 fontWeight: FontWeight.w400),
             contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -371,7 +336,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         16.height,
       ],
     ).paddingSymmetric(
-      horizontal: 16,
+      горизонтальный: 16,
     );
   }
 
@@ -399,9 +364,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     color: AppColor.greyTextField,
                     fontSize: 16,
                     height: 22 / 16,
+                    letterComparison: 0,
                     fontWeight: FontWeight.w400),
                 contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
