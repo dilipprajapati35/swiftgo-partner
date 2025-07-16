@@ -500,11 +500,26 @@ class DioHttp {
     return [];
   }
 
-  // Unlock a ride (booking)
-  Future<Response> unlockBooking(BuildContext context, String bookingId) async {
-    final url = '$_baseUrl/driver/bookings/$bookingId/unlock';
+  // Fetch all passenger locations for a trip (for driver tracking)
+  Future<List<Map<String, dynamic>>> getPassengerLocations(BuildContext context, String tripId) async {
+    final response = await _getRequest(
+      context: context,
+      endpoint: ApiEndpoint.trips, // Use trips as base, override path
+      customPath: '/driver/trips/$tripId/passengers/locations',
+    );
+    if (response.data is List) {
+      return List<Map<String, dynamic>>.from(response.data);
+    } else if (response.data is Map && response.data['data'] is List) {
+      return List<Map<String, dynamic>>.from(response.data['data']);
+    }
+    return [];
+  }
+
+  // Start a trip (unlock ride)
+  Future<Response> startTrip(BuildContext context, String tripId) async {
+    final url = '$_baseUrl/driver/trips/$tripId/start';
     try {
-      final response = await _dio.post(url);
+      final response = await _dio.patch(url);
       return response;
     } on DioException catch (err) {
       ApiErrorHandler.handleDioError(context, err);
@@ -513,5 +528,20 @@ class DioHttp {
       ApiErrorHandler.handleUnexpectedError(context, err);
       rethrow;
     }
+  }
+
+  // Fetch driver earnings
+  Future<Map<String, dynamic>> getDriverEarnings(BuildContext context) async {
+    final response = await _getRequest(
+      context: context,
+      endpoint: ApiEndpoint.dashboard, // Use any valid endpoint, override with customPath
+      customPath: '/driver/earnings',
+    );
+    if (response.data is Map<String, dynamic>) {
+      return response.data as Map<String, dynamic>;
+    } else if (response.data is Map && response.data['data'] is Map<String, dynamic>) {
+      return response.data['data'] as Map<String, dynamic>;
+    }
+    return {};
   }
 }

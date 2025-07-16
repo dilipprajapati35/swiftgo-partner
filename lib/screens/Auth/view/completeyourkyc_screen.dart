@@ -164,7 +164,10 @@ void _showOTPFailedDialog(BuildContext context) {
               borderRadius: BorderRadius.circular(11),
             ),
             child: Container(
-              height: context.height() * 0.37,
+              constraints: BoxConstraints(
+                maxHeight: context.height() * 0.70,
+                minHeight: context.height() * 0.40,
+              ),
               width: context.width(),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -173,6 +176,7 @@ void _showOTPFailedDialog(BuildContext context) {
               child: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 16),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     20.height,
@@ -212,7 +216,8 @@ void _showOTPFailedDialog(BuildContext context) {
                     12.height,
                     button('Change Aadhaar Number', () {
                       Navigator.pop(context);
-                    }, context, 0xffFFFFFF, 0xffD0D5DD, Color(0xff344054))
+                    }, context, 0xffFFFFFF, 0xffD0D5DD, Color(0xff344054)),
+                    16.height,
                   ],
                 ),
               ),
@@ -222,7 +227,6 @@ void _showOTPFailedDialog(BuildContext context) {
       );
     },
   );
-  ;
 }
 
 Widget button(String text, VoidCallback onTap, BuildContext context, int color,
@@ -262,12 +266,11 @@ void _showOTPSUCCESSDialog(BuildContext context) {
             elevation: 5,
             surfaceTintColor: Colors.white,
             shadowColor: Colors.black,
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(11),
-            ),
             child: Container(
-              height: context.height() * 0.3,
+              constraints: BoxConstraints(
+                maxHeight: context.height() * 0.50,
+                minHeight: context.height() * 0.25,
+              ),
               width: context.width(),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -276,6 +279,7 @@ void _showOTPSUCCESSDialog(BuildContext context) {
               child: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 16),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     20.height,
@@ -306,7 +310,7 @@ void _showOTPSUCCESSDialog(BuildContext context) {
                     button('Continue', () {
                       const MainNavigation().launch(context);
                     }, context, 0xff3E57B4, 0xff3E57B4, Colors.white),
-                    12.height,
+                    16.height,
                   ],
                 ),
               ),
@@ -316,5 +320,4 @@ void _showOTPSUCCESSDialog(BuildContext context) {
       );
     },
   );
-  ;
 }

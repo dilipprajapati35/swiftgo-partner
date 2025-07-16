@@ -3,26 +3,56 @@ import 'package:flutter_arch/common/app_assets.dart';
 import 'package:flutter_arch/common/style/app_style.dart';
 import 'package:flutter_arch/theme/colorTheme.dart';
 import 'package:nb_utils/nb_utils.dart';
+import 'package:flutter_arch/services/dio_http.dart';
 
-class SwiftPassScreen extends StatelessWidget {
+class SwiftPassScreen extends StatefulWidget {
   const SwiftPassScreen({super.key});
 
   @override
+  State<SwiftPassScreen> createState() => _SwiftPassScreenState();
+}
+
+class _SwiftPassScreenState extends State<SwiftPassScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic> _earnings = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchEarnings();
+  }
+
+  Future<void> _fetchEarnings() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await DioHttp().getDriverEarnings(context);
+      setState(() {
+        _earnings = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      toast('Failed to load earnings');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Mock data
-    final String mainAmount = '12,491.22';
-    final String totalBalance = '1544.00';
-    final int totalRides = 244;
-    final String totalTime = '25D 12H';
-    final List<Map<String, String>> dailyEarnings = [
-      {'date': 'Today: 25/04/2024', 'amount': '1,000'},
-      {'date': 'Yesterday: 24/04/2024', 'amount': '2,524'},
-      {'date': '23/04/2024', 'amount': '1,300'},
-      {'date': '22/04/2024', 'amount': '2,600'},
-      {'date': '21/04/2024', 'amount': '3,500'},
-    ];
-    final List<int> chartData = [1200, 500, 1800, 700, 2000, 1700, 1400];
-    final List<String> chartLabels = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColor.greyShade7,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final String mainAmount = (_earnings['lastMonthTotal'] ?? 0).toString();
+    final String totalBalance = (_earnings['totalBalance'] ?? 0).toString();
+    final int totalRides = (_earnings['lastMonthRides'] ?? 0);
+    final String totalTime = (_earnings['lastMonthHours'] ?? '0H');
+    final List<dynamic> dailyEarnings = _earnings['dailyEarnings'] ?? [];
+    final List<dynamic> weeklyEarnings = _earnings['weeklyEarnings'] ?? [];
+    final List<int> chartData = weeklyEarnings.map<int>((e) => (e['amount'] ?? 0) as int).toList();
+    final List<String> chartLabels = weeklyEarnings.map<String>((e) => e['day'] ?? '').toList();
 
     return Scaffold(
       backgroundColor: AppColor.greyShade7,
@@ -48,7 +78,6 @@ class SwiftPassScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
                     child: Stack(
                       children: [
-                       
                         Center(
                           child: Text(
                             'Earnings',
@@ -153,7 +182,7 @@ class SwiftPassScreen extends StatelessWidget {
                       4.height,
                       Text('₹ $totalBalance', style: AppStyle.title.copyWith(fontSize: 22, color: AppColor.buttonColor, fontWeight: FontWeight.bold)),
                       12.height,
-                      // Simple bar chart mockup
+                      // Simple bar chart
                       SizedBox(
                         height: 80,
                         child: Row(
@@ -236,10 +265,10 @@ class SwiftPassScreen extends StatelessWidget {
                                   ),
                                 ),
                                 8.width,
-                                Text(e['date']!, style: AppStyle.body.copyWith(fontSize: 14)),
+                                Text((e['date'] ?? ''), style: AppStyle.body.copyWith(fontSize: 14)),
                               ],
                             ),
-                            Text('₹${e['amount']}', style: AppStyle.body.copyWith(color: Color(0xff08875D), fontWeight: FontWeight.w600)),
+                            Text('₹${e['amount'] ?? 0}', style: AppStyle.body.copyWith(color: Color(0xff08875D), fontWeight: FontWeight.w600)),
                           ],
                         ),
                       )),
@@ -247,7 +276,8 @@ class SwiftPassScreen extends StatelessWidget {
                   ),
                 ),
               ),
-40.height,            ],
+              40.height,
+            ],
           ),
         ),
       ),

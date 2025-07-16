@@ -138,6 +138,17 @@ class _SelfieUploadScreenState extends State<SelfieUploadScreen> {
             14.height,
             _buildContinueButton(),
             13.height,
+                Align(
+              alignment: Alignment.bottomCenter,
+              child: Text('Skip',
+                      style: AppStyle.caption1w400
+                          .copyWith(color: AppColor.greyShade2, fontSize: 16))
+                  .paddingOnly(left: 16, right: 16, bottom: 16)
+                  .onTap(() => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => Complete_Kyc_Screen()))),
+            ),
           ],
         ),
       ),

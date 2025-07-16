@@ -102,18 +102,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 physics: BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.home, size: 28),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const MainNavigation(),
-                          ),
-                        );
-                      },
-                    ).paddingOnly(left: 16, bottom: 8),
-
+                  children: [                   
                     _buildTextField(
                       controller: _fullNameController,
                       label: 'Full Name *',
