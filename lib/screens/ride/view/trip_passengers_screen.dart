@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_arch/screens/homepage/view/ride_call_screen.dart';
 import 'package:flutter_arch/services/dio_http.dart';
 import 'package:flutter_arch/storage/flutter_secure_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_arch/screens/ride/model/rideModel.dart';
 import 'package:flutter_arch/services/driver_location_service.dart';
 import 'dart:async'; // Added for Timer
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 class TripPassengersScreen extends StatefulWidget {
   final String tripId;
@@ -24,21 +26,73 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
   GoogleMapController? _mapController;
   DriverLocationService? _locationService; // Add this field
   MySecureStorage secureStorage = MySecureStorage();
-
-  // Add for passenger location tracking
-  List<Map<String, dynamic>> _passengerLocations = [];
-  Timer? _passengerLocationTimer;
+  List<LatLng> _routePolyline = [];
+  PolylinePoints polylinePoints = PolylinePoints();
 
   @override
   void initState() {
     super.initState();
     _fetchPassengers();
+    _fetchRoutePolyline();
+    _checkTripStatus(); // Check if trip is already unlocked
+  }
+
+  Future<void> _checkTripStatus() async {
+    try {
+      // First check if we have stored the unlock status locally
+      String? storedStatus = await secureStorage.readSecureData('trip_${widget.tripId}_unlocked');
+      if (storedStatus == 'true') {
+        setState(() {
+          _isTripUnlocked = true;
+        });
+        
+        // Start location service if trip is unlocked
+        if (_locationService == null) {
+          final token = await secureStorage.readToken();
+          if (token != null) {
+            _locationService = DriverLocationService(driverToken: token);
+            _locationService!.startSendingLocation();
+          }
+        }
+        return;
+      }
+      
+      // If not stored locally, check if trip is already started/unlocked by checking passenger status
+      final passengers = await DioHttp().getTripPassengers(context, widget.tripId);
+      
+      // Check if any passenger has been processed (indicates trip was unlocked)
+      bool hasProcessedPassengers = passengers.any((p) => p['status'] != null && 
+          (p['status'].toString().toUpperCase() == 'ONGOING' || 
+           p['status'].toString().toUpperCase() == 'NO_SHOW'));
+      
+      setState(() {
+        _isTripUnlocked = hasProcessedPassengers;
+      });
+      
+      // Store the status locally if trip is unlocked
+      if (hasProcessedPassengers) {
+        await secureStorage.writeSecureData('trip_${widget.tripId}_unlocked', 'true');
+        
+        // Start location service
+        if (_locationService == null) {
+          final token = await secureStorage.readToken();
+          if (token != null) {
+            _locationService = DriverLocationService(driverToken: token);
+            _locationService!.startSendingLocation();
+          }
+        }
+      }
+    } catch (e) {
+      // If there's an error, assume trip is not unlocked
+      setState(() {
+        _isTripUnlocked = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _locationService?.stopSendingLocation(); // Stop location updates
-    _passengerLocationTimer?.cancel(); // Stop passenger location polling
     super.dispose();
   }
 
@@ -58,18 +112,6 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
     }
   }
 
-  // Fetch passenger locations for driver tracking
-  Future<void> _fetchPassengerLocations() async {
-    try {
-      final locations = await DioHttp().getPassengerLocations(context, widget.tripId);
-      setState(() {
-        _passengerLocations = locations;
-      });
-    } catch (e) {
-      // Optionally handle error
-    }
-  }
-
   Future<void> _unlockTrip() async {
     setState(() { _isUnlocking = true; });
     try {
@@ -84,26 +126,56 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
           _locationService = DriverLocationService(driverToken: token!);
           _locationService!.startSendingLocation();
         }
+        
+        // Store the unlock status locally
+        await secureStorage.writeSecureData('trip_${widget.tripId}_unlocked', 'true');
+        
         await _fetchPassengers();
         setState(() { _isTripUnlocked = true; });
-        // Start periodic fetching of passenger locations
-        _passengerLocationTimer = Timer.periodic(Duration(seconds: 10), (_) => _fetchPassengerLocations());
-        // Fetch immediately as well
-        _fetchPassengerLocations();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to unlock ride')),
         );
       }
     } catch (e) {
-      // Optionally handle error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to unlock ride. Please try again.')),
+      );
     }
     setState(() { _isUnlocking = false; });
   }
 
+  Future<void> _fetchRoutePolyline() async {
+    final start = widget.startCoordinates;
+    final end = widget.endCoordinates;
+    const String googleAPIKey = 'AIzaSyCXvZ6f1LTP07lD6zhqnozAG20MzlUjis8';
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      googleApiKey: googleAPIKey,
+      request: PolylineRequest(
+        origin: PointLatLng(start.latitude, start.longitude),
+        destination: PointLatLng(end.latitude, end.longitude),
+        mode: TravelMode.driving,
+      ),
+    );
+    if (result.status == 'OK' && result.points.isNotEmpty) {
+      setState(() {
+        _routePolyline = result.points
+            .map((p) => LatLng(p.latitude, p.longitude))
+            .toList();
+      });
+    } else {
+      setState(() {
+        _routePolyline = [
+          LatLng(start.latitude, start.longitude),
+          LatLng(end.latitude, end.longitude),
+        ];
+      });
+    }
+  }
+
   Set<Marker> _buildPassengerMarkers() {
-    // Use _passengerLocations if trip is unlocked, else use _passengers
-    final locations = _isTripUnlocked ? _passengerLocations : _passengers;
+    // Use _passengers only, as passenger tracking is removed
+    final locations = _passengers;
     return locations.where((p) => (p['latitude'] ?? 0) != null && (p['longitude'] ?? 0) != null && p['latitude'] != null && p['longitude'] != null)
       .map((p) {
         final lat = p['latitude'];
@@ -153,7 +225,7 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
                         polylineId: const PolylineId('route'),
                         color: Colors.blue,
                         width: 5,
-                        points: [start, end],
+                        points: _routePolyline.isNotEmpty ? _routePolyline : [start, end],
                       ),
                     },
                     markers: {
@@ -201,7 +273,10 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
                               isUnlocking: _isUnlocking,
                             ),
                             const SizedBox(height: 16),
-                            _PassengersListCard(passengers: _passengers),
+                            _PassengersListCard(
+                              passengers: _passengers,
+                              onPassengerStatusChanged: _fetchPassengers,
+                            ),
                           ],
                         ),
                       );
@@ -212,125 +287,22 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
                     alignment: Alignment.bottomCenter,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: _PassengersListCard(passengers: _passengers),
-                    ),
-                  ),
-              ],
-            ),
-    );
-  }
-}
-
-class _PassengerInfoCard extends StatelessWidget {
-  final String name;
-  final String? avatarUrl;
-  final double rating;
-  final String reviews;
-  final String distance;
-  final String time;
-  final VoidCallback? onCall;
-
-  const _PassengerInfoCard({
-    Key? key,
-    required this.name,
-    this.avatarUrl,
-    required this.rating,
-    required this.reviews,
-    required this.distance,
-    required this.time,
-    this.onCall,
-  }) : super(key: key);
-
-  factory _PassengerInfoCard.placeholder() => _PassengerInfoCard(
-        name: 'No passenger',
-        avatarUrl: null,
-        rating: 0,
-        reviews: '0',
-        distance: '-',
-        time: '-',
-        onCall: null,
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-                  child: avatarUrl == null ? const Icon(Icons.person, size: 32) : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: Colors.amber, size: 18),
-                          const SizedBox(width: 4),
-                          Text(rating > 0 ? rating.toStringAsFixed(1) : '-', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 4),
-                          Text('($reviews reviews)', style: const TextStyle(color: Colors.grey)),
-                        ],
+                      child: _PassengersListCard(
+                        passengers: _passengers,
+                        onPassengerStatusChanged: _fetchPassengers,
                       ),
-                    ],
-                  ),
-                ),
-                if (onCall != null)
-                  ElevatedButton(
-                    onPressed: onCall,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Call'),
                   ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Column(
-                  children: [
-                    const Text('DISTANCE', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    Text(distance, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
-                ),
-                Container(width: 1, height: 24, color: Colors.grey[300]),
-                Column(
-                  children: [
-                    const Text('TIME', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    Text(time, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
 
 class _PassengersListCard extends StatelessWidget {
   final List<Map<String, dynamic>> passengers;
-  const _PassengersListCard({Key? key, required this.passengers}) : super(key: key);
+  final VoidCallback? onPassengerStatusChanged;
+  const _PassengersListCard({Key? key, required this.passengers, this.onPassengerStatusChanged}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -353,44 +325,308 @@ class _PassengersListCard extends StatelessWidget {
                 separatorBuilder: (_, __) => const Divider(height: 16),
                 itemBuilder: (context, index) {
                   final p = passengers[index];
-                  return Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: p['passengerProfilePhotoUrl'] != null
-                            ? NetworkImage(p['passengerProfilePhotoUrl'])
-                            : null,
-                        child: p['passengerProfilePhotoUrl'] == null
-                            ? const Icon(Icons.person, size: 28)
-                            : null,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p['passengerName'] ?? 'Unknown',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            Text(
-                              p['pickupStopName'] ?? '',
-                              style: const TextStyle(color: Colors.grey, fontSize: 13),
-                            ),
-                          ],
+                  return InkWell(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: Colors.amber, size: 18),
-                          const SizedBox(width: 2),
-                          const Text('5.0', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),     
-                    ],
+                        builder: (ctx) => _PassengerDetailModal(passenger: p),
+                      ).then((result) {
+                        // Refresh passenger list if status was changed
+                        if (result == 'refresh' && onPassengerStatusChanged != null) {
+                          onPassengerStatusChanged!();
+                        }
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundImage: p['passengerProfilePhotoUrl'] != null
+                              ? NetworkImage(p['passengerProfilePhotoUrl'])
+                              : null,
+                          child: p['passengerProfilePhotoUrl'] == null
+                              ? const Icon(Icons.person, size: 28)
+                              : null,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p['passengerName'] ?? 'Unknown',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              Text(
+                                p['pickupStopName'] ?? '',
+                                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                              // Show status if available
+                              if (p['status'] != null)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: p['status'].toString().toUpperCase() == 'ONGOING' 
+                                        ? Colors.green[100] 
+                                        : p['status'].toString().toUpperCase() == 'NO_SHOW'
+                                        ? Colors.red[100]
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    p['status'].toString().toUpperCase() == 'ONGOING' 
+                                        ? 'Onboarded' 
+                                        : p['status'].toString().toUpperCase() == 'NO_SHOW'
+                                        ? 'No Show'
+                                        : p['status'].toString(),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: p['status'].toString().toUpperCase() == 'ONGOING' 
+                                          ? Colors.green[800] 
+                                          : p['status'].toString().toUpperCase() == 'NO_SHOW'
+                                          ? Colors.red[800]
+                                          : Colors.grey[800],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.star, color: Colors.amber, size: 18),
+                            const SizedBox(width: 2),
+                            const Text('5.0', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),     
+                      ],
+                    ),
                   );
                 },
               ),
+      ),
+    );
+  }
+}
+
+class _PassengerDetailModal extends StatefulWidget {
+  final Map<String, dynamic> passenger;
+  const _PassengerDetailModal({Key? key, required this.passenger}) : super(key: key);
+
+  @override
+  State<_PassengerDetailModal> createState() => _PassengerDetailModalState();
+}
+
+class _PassengerDetailModalState extends State<_PassengerDetailModal> {
+  bool _isLoading = false;
+  String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.passenger['status']?.toString().toUpperCase();
+  }
+
+  Future<void> _onboardPassenger() async {
+    setState(() { _isLoading = true; });
+    try {
+      final response = await DioHttp().onboardPassenger(context, widget.passenger['bookingId']);
+      if (response.statusCode == 200) {
+        setState(() { _status = 'ONGOING'; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Passenger onboarded!')),
+        );
+        // Close the modal and refresh the passenger list
+        Navigator.of(context).pop('refresh');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to onboard passenger')),
+      );
+    }
+    setState(() { _isLoading = false; });
+  }
+
+  Future<void> _declinePassenger() async {
+    setState(() { _isLoading = true; });
+    try {
+      final response = await DioHttp().declinePassenger(context, widget.passenger['bookingId']);
+      if (response.statusCode == 200) {
+        setState(() { _status = 'NO_SHOW'; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Passenger declined (no-show).')),
+        );
+        // Close the modal and refresh the passenger list
+        Navigator.of(context).pop('refresh');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to decline passenger')),
+      );
+    }
+    setState(() { _isLoading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.passenger;
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 32,
+                      backgroundImage: p['passengerProfilePhotoUrl'] != null
+                          ? NetworkImage(p['passengerProfilePhotoUrl'])
+                          : null,
+                      child: p['passengerProfilePhotoUrl'] == null
+                          ? const Icon(Icons.person, size: 36)
+                          : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['passengerName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                        Row(
+                          children: [
+                            ...List.generate(4, (i) => Icon(Icons.star, color: Colors.blue, size: 20)),
+                            Icon(Icons.star, color: Colors.grey[300], size: 20),
+                            const SizedBox(width: 6),
+                            Text('35 REVIEWS', style: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: const [
+                    Text('DISTANCE', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('0.2 mi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                Container(width: 1, height: 24, color: Colors.grey[300]),
+                Column(
+                  children: const [
+                    Text('TIME', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('8 min', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => RideCallScreen(),));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Call'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            if (_status != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _status == 'ONGOING' ? Colors.green[100] : _status == 'NO_SHOW' ? Colors.red[100] : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _status == 'ONGOING' ? 'Onboarded' : _status == 'NO_SHOW' ? 'No Show' : _status!,
+                  style: TextStyle(
+                    color: _status == 'ONGOING' ? Colors.green[800] : _status == 'NO_SHOW' ? Colors.red[800] : Colors.grey[800],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 18),
+            // Only show action buttons if passenger hasn't been processed yet
+            if (_status == null || (_status != 'ONGOING' && _status != 'NO_SHOW'))
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _onboardPassenger,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Onboard', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _declinePassenger,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Decline', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            // Show message when passenger has already been processed
+            if (_status == 'ONGOING' || _status == 'NO_SHOW')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: _status == 'ONGOING' ? Colors.green[50] : Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _status == 'ONGOING' ? Colors.green[200]! : Colors.red[200]!,
+                  ),
+                ),
+                child: Text(
+                  _status == 'ONGOING' 
+                      ? 'This passenger has already been onboarded' 
+                      : 'This passenger was marked as no-show',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _status == 'ONGOING' ? Colors.green[800] : Colors.red[800],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }

@@ -500,21 +500,6 @@ class DioHttp {
     return [];
   }
 
-  // Fetch all passenger locations for a trip (for driver tracking)
-  Future<List<Map<String, dynamic>>> getPassengerLocations(BuildContext context, String tripId) async {
-    final response = await _getRequest(
-      context: context,
-      endpoint: ApiEndpoint.trips, // Use trips as base, override path
-      customPath: '/driver/trips/$tripId/passengers/locations',
-    );
-    if (response.data is List) {
-      return List<Map<String, dynamic>>.from(response.data);
-    } else if (response.data is Map && response.data['data'] is List) {
-      return List<Map<String, dynamic>>.from(response.data['data']);
-    }
-    return [];
-  }
-
   // Start a trip (unlock ride)
   Future<Response> startTrip(BuildContext context, String tripId) async {
     final url = '$_baseUrl/driver/trips/$tripId/start';
@@ -543,5 +528,35 @@ class DioHttp {
       return response.data['data'] as Map<String, dynamic>;
     }
     return {};
+  }
+
+  // Onboard a passenger (mark as ONGOING)
+  Future<Response> onboardPassenger(BuildContext context, String bookingId) async {
+    final url = '$_baseUrl/driver/bookings/$bookingId/onboard-start';
+    try {
+      final response = await _dio.post(url);
+      return response;
+    } on DioException catch (err) {
+      ApiErrorHandler.handleDioError(context, err);
+      rethrow;
+    } catch (err) {
+      ApiErrorHandler.handleUnexpectedError(context, err);
+      rethrow;
+    }
+  }
+
+  // Decline a passenger (mark as NO_SHOW)
+  Future<Response> declinePassenger(BuildContext context, String bookingId) async {
+    final url = '$_baseUrl/driver/bookings/$bookingId/decline';
+    try {
+      final response = await _dio.post(url);
+      return response;
+    } on DioException catch (err) {
+      ApiErrorHandler.handleDioError(context, err);
+      rethrow;
+    } catch (err) {
+      ApiErrorHandler.handleUnexpectedError(context, err);
+      rethrow;
+    }
   }
 }

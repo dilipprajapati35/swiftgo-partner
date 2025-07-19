@@ -48,7 +48,7 @@ class _AadharOtpVerificationScreenState
           isLoading = false;
         });
 
-        if (response.statusCode == 201 && response.data['user'] != null) {
+        if (response.statusCode == 201 ) {
           final userId = response.data['user']['id'];
           if (userId != null) {
             final storage = MySecureStorage();

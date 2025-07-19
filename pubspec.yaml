@@ -38,6 +38,7 @@ dependencies:
   dotted_dashed_line: ^0.0.3
   country_code_picker: ^3.3.0
   file_picker: ^10.2.0
+  flutter_polyline_points: ^2.1.0
 
 dev_dependencies:
   flutter_test:

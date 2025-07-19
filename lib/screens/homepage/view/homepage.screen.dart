@@ -62,187 +62,191 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: isLoading
             ? Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Stack for header and floating card
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Blue header
-                        Container(
-                          width: double.infinity,
-                          height: 150, // Smaller height for header
-                          decoration: BoxDecoration(
-                            color: AppColor.buttonColor,
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(24),
-                              bottomRight: Radius.circular(24),
+            : RefreshIndicator(
+                onRefresh: _fetchDashboard,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Stack for header and floating card
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Blue header
+                          Container(
+                            width: double.infinity,
+                            height: 150, // Smaller height for header
+                            decoration: BoxDecoration(
+                              color: AppColor.buttonColor,
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(24),
+                                bottomRight: Radius.circular(24),
+                              ),
                             ),
-                          ),
-                          padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Text(
-                                  'Dashbord',
-                                  style: AppStyle.title.copyWith(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
+                            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
+                            child: Stack(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    'Dashbord',
+                                    style: AppStyle.title.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
+                                Positioned(
+                                  right: 0,
+                                  top: 20,
+                                  child: Image.asset(AppAssets.logoSmall, height: 32),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Floating Today's Earnings Card
+                          Positioned(
+                            left: 20,
+                            right: 20,
+                            top: 90, // Adjust this value for overlap
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                              Positioned(
-                                right: 0,
-                                top: 20,
-                                child: Image.asset(AppAssets.logoSmall, height: 32),
+                              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Today', style: AppStyle.body.copyWith(color: AppColor.greyShade2)),
+                                  4.height,
+                                  Text('$currency${todaysEarnings['amount'] ?? 0}', style: AppStyle.title.copyWith(fontSize: 24, color: AppColor.buttonColor, fontWeight: FontWeight.bold)),
+                                  12.height,
+                                  Row(
+                                    children: [
+                                      Icon(Icons.directions_car, size: 18, color: AppColor.greyShade2),
+                                      4.width,
+                                      Text('${rides} Rides', style: AppStyle.caption1w400.copyWith(color: AppColor.greyShade2)),
+                                      16.width,
+                                      Icon(Icons.access_time, size: 18, color: AppColor.greyShade2),
+                                      4.width,
+                                      Text('${hours}H', style: AppStyle.caption1w400.copyWith(color: AppColor.greyShade2)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 80), // Space below the floating card
+                      // Total Balance Card
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Total Balance', style: AppStyle.body.copyWith(color: AppColor.greyShade2)),
+                              4.height,
+                              Text('$balanceCurrency${totalBalance['amount'] ?? 0}', style: AppStyle.title.copyWith(fontSize: 22, color: AppColor.buttonColor, fontWeight: FontWeight.bold)),
+                              12.height,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('View Payment History', style: AppStyle.body.copyWith(color: AppColor.buttonColor)),
+                                  Icon(Icons.arrow_forward_ios, size: 16, color: AppColor.buttonColor),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        // Floating Today's Earnings Card
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          top: 90, // Adjust this value for overlap
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Today', style: AppStyle.body.copyWith(color: AppColor.greyShade2)),
-                                4.height,
-                                Text('$currency${todaysEarnings['amount'] ?? 0}', style: AppStyle.title.copyWith(fontSize: 24, color: AppColor.buttonColor, fontWeight: FontWeight.bold)),
-                                12.height,
-                                Row(
-                                  children: [
-                                    Icon(Icons.directions_car, size: 18, color: AppColor.greyShade2),
-                                    4.width,
-                                    Text('${rides} Rides', style: AppStyle.caption1w400.copyWith(color: AppColor.greyShade2)),
-                                    16.width,
-                                    Icon(Icons.access_time, size: 18, color: AppColor.greyShade2),
-                                    4.width,
-                                    Text('${hours}H', style: AppStyle.caption1w400.copyWith(color: AppColor.greyShade2)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 80), // Space below the floating card
-                    // Total Balance Card
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Total Balance', style: AppStyle.body.copyWith(color: AppColor.greyShade2)),
-                            4.height,
-                            Text('$balanceCurrency${totalBalance['amount'] ?? 0}', style: AppStyle.title.copyWith(fontSize: 22, color: AppColor.buttonColor, fontWeight: FontWeight.bold)),
-                            12.height,
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('View Payment History', style: AppStyle.body.copyWith(color: AppColor.buttonColor)),
-                                Icon(Icons.arrow_forward_ios, size: 16, color: AppColor.buttonColor),
-                              ],
-                            ),
-                          ],
+                      ),
+                      16.height,
+                      // Request Cab Button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: AppPrimaryButton(
+                          text: 'Request cab',
+                          onTap: () {
+                            // Navigate to request cab screen
+                            
+                          },
                         ),
                       ),
-                    ),
-                    16.height,
-                    // Request Cab Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: AppPrimaryButton(
-                        text: 'Request cab',
+                      16.height,
+                      // Upcoming Trips
+                      _buildTripSection(
+                        title: 'Upcoming trips',
+                        count: upcomingCount,
+                        name: 'Megan Fox',
+                        rating: 4.8,
+                        tripType: 'Upcoming',
                         onTap: () {
-                          // Navigate to request cab screen
-                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Myride(initialTabIndex: 0),
+                            ),
+                          );
                         },
                       ),
-                    ),
-                    16.height,
-                    // Upcoming Trips
-                    _buildTripSection(
-                      title: 'Upcoming trips',
-                      count: upcomingCount,
-                      name: 'Megan Fox',
-                      rating: 4.8,
-                      tripType: 'Upcoming',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Myride(initialTabIndex: 0),
-                          ),
-                        );
-                      },
-                    ),
-                    // Completed Trips
-                    _buildTripSection(
-                      title: 'Completed trips',
-                      count: completedCount,
-                      name: 'Megan Fox',
-                      rating: 4.8,
-                      tripType: 'Completed',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Myride(initialTabIndex: 1),
-                          ),
-                        );
-                      },
-                    ),
-                    // Cancelled Trips
-                    _buildTripSection(
-                      title: 'Cancelled trips',
-                      count: cancelledCount,
-                      name: 'Megan Fox',
-                      rating: 4.8,
-                      tripType: 'Cancelled',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Myride(initialTabIndex: 2),
-                          ),
-                        );
-                      },
-                    ),
-                    24.height,
-                  ],
+                      // Completed Trips
+                      _buildTripSection(
+                        title: 'Completed trips',
+                        count: completedCount,
+                        name: 'Megan Fox',
+                        rating: 4.8,
+                        tripType: 'Completed',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Myride(initialTabIndex: 1),
+                            ),
+                          );
+                        },
+                      ),
+                      // Cancelled Trips
+                      _buildTripSection(
+                        title: 'Cancelled trips',
+                        count: cancelledCount,
+                        name: 'Megan Fox',
+                        rating: 4.8,
+                        tripType: 'Cancelled',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Myride(initialTabIndex: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      24.height,
+                    ],
+                  ),
                 ),
               ),
       ),

@@ -12,7 +12,6 @@ import 'package:flutter_arch/theme/colorTheme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nb_utils/nb_utils.dart';
 
-
 class Complete_Kyc_Screen extends StatefulWidget {
   const Complete_Kyc_Screen({super.key});
 
@@ -64,15 +63,17 @@ class _Complete_Kyc_ScreenState extends State<Complete_Kyc_Screen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      BorderSide(color: AppColor.buttonColor, width: 2),
+                  borderSide: BorderSide(color: AppColor.buttonColor, width: 2),
                 ),
               ),
             ).paddingSymmetric(horizontal: 16),
             15.height,
             GestureDetector(
               onTap: () {
-                const MainNavigation().launch(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => MainNavigation()),
+                );
               },
               child: Align(
                 alignment: Alignment.centerRight,
