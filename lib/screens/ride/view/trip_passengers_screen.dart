@@ -5,6 +5,7 @@ import 'package:flutter_arch/storage/flutter_secure_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_arch/screens/ride/model/rideModel.dart';
 import 'package:flutter_arch/services/driver_location_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:async'; // Added for Timer
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
@@ -28,6 +29,8 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
   MySecureStorage secureStorage = MySecureStorage();
   List<LatLng> _routePolyline = [];
   PolylinePoints polylinePoints = PolylinePoints();
+  LatLng? _currentDriverLocation; // Add this to track driver's current location
+  StreamSubscription<Position>? _positionStreamSubscription; // Add this for location stream
 
   @override
   void initState() {
@@ -52,6 +55,8 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
           if (token != null) {
             _locationService = DriverLocationService(driverToken: token);
             _locationService!.startSendingLocation();
+            // Start live location tracking for map
+            _startLiveLocationTracking();
           }
         }
         return;
@@ -79,6 +84,8 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
           if (token != null) {
             _locationService = DriverLocationService(driverToken: token);
             _locationService!.startSendingLocation();
+            // Start live location tracking for map
+            _startLiveLocationTracking();
           }
         }
       }
@@ -93,7 +100,44 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
   @override
   void dispose() {
     _locationService?.stopSendingLocation(); // Stop location updates
+    _positionStreamSubscription?.cancel(); // Cancel location stream
     super.dispose();
+  }
+
+  // Start tracking driver's live location
+  void _startLiveLocationTracking() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) return;
+
+    // Listen to location changes and update driver marker on map
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Update every 10 meters
+      ),
+    ).listen((Position position) {
+      setState(() {
+        _currentDriverLocation = LatLng(position.latitude, position.longitude);
+      });
+      
+      // Move camera to follow driver
+      if (_mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLng(_currentDriverLocation!),
+        );
+      }
+    });
   }
 
   Future<void> _fetchPassengers() async {
@@ -125,6 +169,8 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
           final token = await secureStorage.readToken();
           _locationService = DriverLocationService(driverToken: token!);
           _locationService!.startSendingLocation();
+          // Start live location tracking for map
+          _startLiveLocationTracking();
         }
         
         // Store the unlock status locally
@@ -174,9 +220,21 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
   }
 
   Set<Marker> _buildPassengerMarkers() {
-    // Use _passengers only, as passenger tracking is removed
+    Set<Marker> markers = {};
+    
+    // Add driver marker if location is available
+    if (_currentDriverLocation != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('driver'),
+        position: _currentDriverLocation!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: 'Driver (You)', snippet: 'Current Location'),
+      ));
+    }
+    
+    // Add passenger markers
     final locations = _passengers;
-    return locations.where((p) => (p['latitude'] ?? 0) != null && (p['longitude'] ?? 0) != null && p['latitude'] != null && p['longitude'] != null)
+    final passengerMarkers = locations.where((p) => (p['latitude'] ?? 0) != null && (p['longitude'] ?? 0) != null && p['latitude'] != null && p['longitude'] != null)
       .map((p) {
         final lat = p['latitude'];
         final lng = p['longitude'];
@@ -193,6 +251,9 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
       })
       .whereType<Marker>()
       .toSet();
+    
+    markers.addAll(passengerMarkers);
+    return markers;
   }
 
   @override
@@ -215,9 +276,11 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
                   height: MediaQuery.of(context).size.height,
                   width: double.infinity,
                   child: GoogleMap(
-                    onMapCreated: (c) => _mapController = c,
+                    onMapCreated: (GoogleMapController controller) {
+                      _mapController = controller;
+                    },
                     initialCameraPosition: CameraPosition(
-                      target: start,
+                      target: _currentDriverLocation ?? start, // Start with driver location if available
                       zoom: 13.5,
                     ),
                     polylines: {
@@ -229,22 +292,25 @@ class _TripPassengersScreenState extends State<TripPassengersScreen> {
                       ),
                     },
                     markers: {
+                      // Start marker
                       Marker(
                         markerId: const MarkerId('start'),
                         position: start,
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                         infoWindow: const InfoWindow(title: 'Start'),
                       ),
+                      // End/Destination marker
                       Marker(
                         markerId: const MarkerId('end'),
                         position: end,
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                        infoWindow: const InfoWindow(title: 'End'),
+                        infoWindow: const InfoWindow(title: 'Destination'),
                       ),
+                      // Driver and passenger markers
                       ..._buildPassengerMarkers(),
                     },
                     zoomControlsEnabled: false,
-                    myLocationEnabled: true,
+                    myLocationEnabled: false, // Disable default location to use custom driver marker
                     myLocationButtonEnabled: true,
                   ),
                 ),

@@ -33,7 +33,7 @@ class DriverLocationService {
     } 
 
     // Start a timer to send location every 10 seconds
-    _locationTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
+    _locationTimer = Timer.periodic(Duration(seconds: 2), (timer) async {
       try {
         Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high
