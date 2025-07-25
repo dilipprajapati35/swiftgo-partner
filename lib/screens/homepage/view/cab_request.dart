@@ -10,7 +10,7 @@ class CabRequestScreen extends StatefulWidget {
 
 class _CabRequestScreenState extends State<CabRequestScreen> {
   GoogleMapController? _mapController;
-  LatLng _center = const LatLng(19.0760, 72.8777); // Mumbai as default
+  LatLng _center = const LatLng(19.0760, 72.8777); 
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;

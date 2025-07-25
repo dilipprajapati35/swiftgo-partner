@@ -4,8 +4,6 @@ import 'package:flutter_arch/common/app_assets.dart';
 import 'package:flutter_arch/common/app_primary_button.dart';
 import 'package:flutter_arch/common/style/app_style.dart';
 import 'package:flutter_arch/screens/Auth/view/registration/selfie_verification.screen.dart';
-import 'package:flutter_arch/screens/homepage/view/homepage.screen.dart';
-import 'package:flutter_arch/screens/main_navigation/main_navigation.dart';
 import 'package:flutter_arch/services/dio_http.dart';
 import 'package:flutter_arch/storage/flutter_secure_storage.dart';
 import 'package:flutter_arch/theme/colorTheme.dart';
@@ -352,8 +350,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           }).toList(),
           onChanged: (value) {
             setState(() {
-              selectedGender = value; // Store lowercase value
-              _genderController.text = value ?? ''; // Store lowercase in controller
+              selectedGender = value;
+              _genderController.text = value ?? '';
             });
           },
         ),

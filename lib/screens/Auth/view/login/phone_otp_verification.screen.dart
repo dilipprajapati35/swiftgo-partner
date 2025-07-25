@@ -27,12 +27,6 @@ class _PhoneOtpVerificationScreenState
   DioHttp dio = DioHttp();
   bool isLoading = false;
 
-    @override
-  void initState() {
-    super.initState();
-    
-    // Removed auto-fill functionality - users will enter OTP manually
-  }
   Future<bool> verifyOtpWithApi(String otp) async {
     if (widget.phoneNumber == null) return false;
 
@@ -139,35 +133,7 @@ class _PhoneOtpVerificationScreenState
                   }
                 }
               },
-            ).paddingSymmetric(horizontal: 20),
-            // Display test OTP if available
-            // if (widget.testOtp != null && widget.testOtp!.isNotEmpty)
-            //   Container(
-            //     margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            //     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            //     decoration: BoxDecoration(
-            //       color: AppColor.buttonColor.withOpacity(0.1),
-            //       borderRadius: BorderRadius.circular(8),
-            //       border: Border.all(color: AppColor.buttonColor.withOpacity(0.3)),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         Icon(Icons.info_outline, 
-            //              color: AppColor.buttonColor, 
-            //              size: 16),
-            //         8.width,
-            //         Expanded(
-            //           child: Text(
-            //             'Test OTP: ${widget.testOtp}',
-            //             style: AppStyle.body.copyWith(
-            //               color: AppColor.buttonColor,
-            //               fontWeight: FontWeight.w600,
-            //             ),
-            //           ),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
+            ).paddingSymmetric(horizontal: 20),         
             if (isLoading)
               Center(child: CircularProgressIndicator()).paddingTop(16),
             Spacer(),

@@ -80,6 +80,7 @@ class _CancelledState extends State<Cancelled> {
         SizedBox(height: 12),
         Divider(thickness: 0.4, height: 0),
         _buildPickupTile(ride),
+        ..._buildMiddleStops(ride),
         _buildDestinationTile(ride),
         Divider(height: 0, thickness: 0.4),
         _buildReasonRow(),
@@ -161,7 +162,7 @@ class _CancelledState extends State<Cancelled> {
   }
 
   Widget _buildPickupTile(RideModel ride) {
-    final pickup = ride.pickupPoints.isNotEmpty ? ride.pickupPoints.first : null;
+    final pickup = ride.pickupStop;
     return ListTile(
       dense: true,
       leading: Column(
@@ -193,9 +194,44 @@ class _CancelledState extends State<Cancelled> {
       ),
     );
   }
+  // Show all middle stops (if any) between pickup and destination
+  List<Widget> _buildMiddleStops(RideModel ride) {
+    final stops = ride.middleStops;
+    return stops.map((stop) {
+      return ListTile(
+        dense: true,
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            DottedDashedLine(
+              height: 20,
+              width: 0,
+              axis: Axis.vertical,
+              dashColor: Color(0xffE9F0F7),
+              dashSpace: 4,
+            ),
+            Container(
+              height: 18,
+              width: 18,
+              decoration: BoxDecoration(
+                border: Border.all(color: Color(0xffF2E4E4), width: 5),
+                color: Colors.orange,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ),
+        title: Text('Middle Stop', style: GoogleFonts.nunito(color: Colors.orange, fontSize: 12)),
+        subtitle: Text(
+          stop.name,
+          style: GoogleFonts.nunito(fontSize: 17),
+        ),
+      );
+    }).toList();
+  }
 
   Widget _buildDestinationTile(RideModel ride) {
-    final dest = ride.destinationPoints.isNotEmpty ? ride.destinationPoints.first : null;
+    final dest = ride.destinationStop;
     return ListTile(
       dense: true,
       leading: Column(

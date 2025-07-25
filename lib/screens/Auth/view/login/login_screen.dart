@@ -47,7 +47,6 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
           context, '$_selectedCountryCode${_phoneController.text}');
       if (response.statusCode == 201) {
         MySnackBar.showSnackBar(context, response.data['message']);
-        String? testOtp = response.data['otpForTesting']?.toString();
         Navigator.push(
             context,
             MaterialPageRoute(

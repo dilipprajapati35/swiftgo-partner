@@ -1,84 +1,91 @@
+// lib/services/driver_location_service.dart
+
 import 'dart:async';
+import 'package:flutter_arch/services/socket_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // --- NEW --- Import for LatLng
 
 class DriverLocationService {
   Timer? _locationTimer;
-  final String driverToken;
+  final String tripId;
+  final Function(LatLng)? onLocationUpdate; // --- NEW --- Callback for UI updates
 
-  DriverLocationService({required this.driverToken});
+  final SocketService _socketService = SocketService();
 
-  // Call this function when the driver starts their trip
+  DriverLocationService({
+    required this.tripId,
+    this.onLocationUpdate, // --- NEW ---
+  });
+
   void startSendingLocation() async {
-    // First, check for location permissions
+    print('🚗 Starting driver location broadcasting for trip: $tripId (Official Guide Implementation)');
+
     bool serviceEnabled;
     LocationPermission permission;
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
+      print('Location services are disabled.');
+      return;
     }
 
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        return Future.error('Location permissions are denied');
+        print('Location permissions are denied');
+        return;
       }
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
-      return Future.error('Location permissions are permanently denied.');
-    } 
+      print('Location permissions are permanently denied.');
+      return;
+    }
 
-    // Start a timer to send location every 10 seconds
-    _locationTimer = Timer.periodic(Duration(seconds: 2), (timer) async {
-      try {
-        Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high
-        );
+    print('📡 Driver is now broadcasting location every 8 seconds (following official guide)...');
 
-        // Send the location to the backend
-        await _sendLocationUpdate(position.latitude, position.longitude);
+    _sendCurrentLocation();
 
-      } catch (e) {
-        print('Error getting or sending location: $e');
-      }
+    _locationTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
+      _sendCurrentLocation();
     });
   }
 
-  Future<void> _sendLocationUpdate(double latitude, double longitude) async {
-    // IMPORTANT: Replace with your server address
-    final Uri url = Uri.parse('http://34.93.60.221:3001/driver/dashboard/location');
-    
+  void _sendCurrentLocation() async {
     try {
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $driverToken',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'latitude': latitude,
-          'longitude': longitude,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        print('Location sent successfully: $latitude, $longitude');
-      } else {
-        print('Failed to send location:  [31m${response.body} [0m');
-      }
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      
+      // --- NEW --- Use the callback to update the local UI
+      onLocationUpdate?.call(LatLng(position.latitude, position.longitude));
+      
+      _sendLocationUpdate(position.latitude, position.longitude);
     } catch (e) {
-      print('Error in _sendLocationUpdate: $e');
+      print('Error getting or sending location: $e');
     }
   }
 
-  // Call this function when the driver's trip ends
+  void _sendLocationUpdate(double latitude, double longitude) {
+    if (_socketService.socket == null || !_socketService.socket!.connected) {
+      print('⚠️ Socket not connected. Location update for trip $tripId skipped.');
+      return;
+    }
+
+    // Following official guide: Message Name: updateDriverLocation
+    final payload = {
+      'tripId': tripId,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+
+    _socketService.emit('updateDriverLocation', payload);
+    print('� Driver location broadcast: lat: $latitude, lon: $longitude (trip: $tripId)');
+  }
+
   void stopSendingLocation() {
     _locationTimer?.cancel();
     _locationTimer = null;
-    print('Stopped sending location updates.');
+    print('🛑 Stopped live tracking broadcasts for trip: $tripId (Official Guide cleanup)');
   }
-} 
+}

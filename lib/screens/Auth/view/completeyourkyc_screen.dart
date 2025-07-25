@@ -70,9 +70,10 @@ class _Complete_Kyc_ScreenState extends State<Complete_Kyc_Screen> {
             15.height,
             GestureDetector(
               onTap: () {
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => MainNavigation()),
+                  (route) => false,
                 );
               },
               child: Align(
@@ -309,7 +310,11 @@ void _showOTPSUCCESSDialog(BuildContext context) {
                     ),
                     24.height,
                     button('Continue', () {
-                      const MainNavigation().launch(context);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => MainNavigation()),
+                        (route) => false,
+                      );
                     }, context, 0xff3E57B4, 0xff3E57B4, Colors.white),
                     16.height,
                   ],

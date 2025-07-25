@@ -27,13 +27,6 @@ class _AadharOtpVerificationScreenState
   DioHttp dio = DioHttp();
   bool isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-
-    // Removed auto-fill functionality - users will enter OTP manually
-  }
-
   Future<bool> verifyOtpWithApi(String otp) async {
     if (widget.aadhaarNumber != null && widget.transactionId != null) {
       setState(() {
@@ -48,14 +41,18 @@ class _AadharOtpVerificationScreenState
           isLoading = false;
         });
 
-        if (response.statusCode == 201 ) {
-          final userId = response.data['user']['id'];
-          if (userId != null) {
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          final userId = response.data['id'];
+
+          if (response.data['kycStatus'] == 'verified' && userId != null) {
             final storage = MySecureStorage();
             await storage.writeUserId(userId);
+            return true;
+          } else {
+            return false;
           }
-          return true;
         }
+
         return false;
       } catch (e) {
         setState(() {
@@ -147,13 +144,13 @@ class _AadharOtpVerificationScreenState
                 decoration: BoxDecoration(
                   color: AppColor.buttonColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColor.buttonColor.withOpacity(0.3)),
+                  border:
+                      Border.all(color: AppColor.buttonColor.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, 
-                         color: AppColor.buttonColor, 
-                         size: 16),
+                    Icon(Icons.info_outline,
+                        color: AppColor.buttonColor, size: 16),
                     8.width,
                     Expanded(
                       child: Text(

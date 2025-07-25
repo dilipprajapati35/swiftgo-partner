@@ -55,6 +55,7 @@ class _UpcomingState extends State<Upcoming> {
               tripId: ride.tripId,
               startCoordinates: ride.startCoordinates,
               endCoordinates: ride.endCoordinates,
+              middleStops: ride.middleStops,
             ),
           ),
         );
@@ -85,6 +86,7 @@ class _UpcomingState extends State<Upcoming> {
         SizedBox(height: 12),
         Divider(thickness: 1),
         _buildPickupTile(ride),
+        ..._buildMiddleStops(ride),
         _buildDestinationTile(ride),
         Divider(),
         _buildArrivedRow(ride),
@@ -173,7 +175,7 @@ class _UpcomingState extends State<Upcoming> {
   }
 
   Widget _buildPickupTile(RideModel ride) {
-    final pickup = ride.pickupPoints.isNotEmpty ? ride.pickupPoints.first : null;
+    final pickup = ride.pickupStop;
     return ListTile(
       leading: Container(
         height: 18,
@@ -193,8 +195,31 @@ class _UpcomingState extends State<Upcoming> {
     );
   }
 
+  // Show all middle stops (if any) between pickup and destination
+  List<Widget> _buildMiddleStops(RideModel ride) {
+    final stops = ride.middleStops;
+    return stops.map((stop) {
+      return ListTile(
+        leading: Container(
+          height: 18,
+          width: 18,
+          decoration: BoxDecoration(
+            border: Border.all(color: Color(0xffF2E4E4), width: 5),
+            color: Colors.orange,
+            shape: BoxShape.circle,
+          ),
+        ),
+        title: Text('Middle Stop', style: GoogleFonts.nunito(color: Colors.orange, fontSize: 12)),
+        subtitle: Text(
+          stop.name,
+          style: GoogleFonts.nunito(fontSize: 17),
+        ),
+      );
+    }).toList();
+  }
+
   Widget _buildDestinationTile(RideModel ride) {
-    final dest = ride.destinationPoints.isNotEmpty ? ride.destinationPoints.first : null;
+    final dest = ride.destinationStop;
     return ListTile(
       leading: Container(
         height: 18,
