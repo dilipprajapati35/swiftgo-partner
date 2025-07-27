@@ -546,17 +546,17 @@ class DioHttp {
   }
 
   // Decline a passenger (mark as NO_SHOW)
-  Future<Response> declinePassenger(BuildContext context, String bookingId) async {
-    final url = '$_baseUrl/driver/bookings/$bookingId/decline';
-    try {
-      final response = await _dio.post(url);
-      return response;
-    } on DioException catch (err) {
-      ApiErrorHandler.handleDioError(context, err);
-      rethrow;
-    } catch (err) {
-      ApiErrorHandler.handleUnexpectedError(context, err);
-      rethrow;
-    }
+Future<Response> declinePassenger(BuildContext context, String bookingId, {required String reason}) async {
+  final url = '$_baseUrl/driver/bookings/$bookingId/decline';
+  try {
+    final response = await _dio.post(url, data: {"reason": reason});
+    return response;
+  } on DioException catch (err) {
+    ApiErrorHandler.handleDioError(context, err);
+    rethrow;
+  } catch (err) {
+    ApiErrorHandler.handleUnexpectedError(context, err);
+    rethrow;
   }
+}
 }

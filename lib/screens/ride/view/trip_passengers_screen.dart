@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_arch/screens/ride/model/rideModel.dart';
 import 'package:flutter_arch/services/driver_location_service.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_arch/screens/ride/view/_decline_reason_sheet.dart' show DeclineReasonSheet;
 
 class TripPassengersScreen extends StatefulWidget {
   final String tripId;
@@ -904,15 +905,13 @@ class _PassengerDetailModalState extends State<_PassengerDetailModal> {
     _status = widget.passenger['status']?.toString().toUpperCase();
   }
 
+
   Future<void> _onboardPassenger() async {
     setState(() { _isLoading = true; });
     try {
       final response = await DioHttp().onboardPassenger(context, widget.passenger['bookingId']);
       if (mounted && (response.statusCode == 200 || response.statusCode == 201)) {
         setState(() { _status = 'ONGOING'; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Passenger onboarded!')),
-        );
         Navigator.of(context).pop('refresh');
       }
     } catch (e) {
@@ -927,16 +926,22 @@ class _PassengerDetailModalState extends State<_PassengerDetailModal> {
     }
   }
 
-  Future<void> _declinePassenger() async {
+  Future<void> _declinePassengerWithReason() async {
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DeclineReasonSheet(),
+    );
+    if (reason == null || reason.trim().isEmpty) return;
     setState(() { _isLoading = true; });
     try {
-      final response = await DioHttp().declinePassenger(context, widget.passenger['bookingId']);
+      final response = await DioHttp().declinePassenger(context, widget.passenger['bookingId'], reason: reason);
       if (mounted && (response.statusCode == 200 || response.statusCode == 201)) {
         setState(() { _status = 'NO_SHOW'; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Passenger declined (no-show).')),
-        );
-        Navigator.of(context).pop('refresh');
+        Navigator.of(context).pop('refresh'); // Just pop, no success modal
       }
     } catch (e) {
       if (mounted) {
@@ -1063,7 +1068,7 @@ class _PassengerDetailModalState extends State<_PassengerDetailModal> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _declinePassenger,
+                      onPressed: _isLoading ? null : _declinePassengerWithReason,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         padding: const EdgeInsets.symmetric(vertical: 14),
